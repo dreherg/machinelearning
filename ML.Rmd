@@ -1,0 +1,125 @@
+### Qualitative Activity Recognition by Machine Learning  
+  
+#### Background
+
+The purpose of this project is to build a machine learning model. This model will use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants. Participants were asked to perform one set of 10 repetitions
+of the Unilateral Dumbbell Biceps Curl in five diferent fashions:
+exactly according to the specification (Class A), throwing
+the elbows to the front (Class B), lifting the dumbbell
+only halfway (Class C), lowering the dumbbell only halfway
+(Class D) and throwing the hips to the front (Class E). Class
+A corresponds to the specified execution of the exercise,
+while the other 4 classes correspond to common mistakes.
+The model will attempt to correctly identify each of the 5 categories (A, B, C, D, E)
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE }
+## Libraries required for analysis
+library(randomForest)
+library(knitr)
+library(caret)
+```
+#### Exploratory Data Analyses to reduced the number of predictors(features)  
+
+```{r echo=TRUE, cache = TRUE}
+## Read data
+td <- read.csv("pml-training.csv")
+```
+The original data set contains `r nrow(td)` observations on `r ncol(td)` features. 
+  
+1.  After reviewing the features the following features were removed.  
+
+```{r echo=TRUE}
+## Remove the following non-informative features
+names(td[1:7])
+td <- td[ -c(1:7) ]
+```
+2.  The data will be now cleaned and features with near zero variance will be removed according to the following criteria.   
+
+nearZeroVar() diagnoses predictors that have one unique value (i.e. are zero variance predictors) or predictors that are have both of the following characteristics: they have very few unique values relative to the number of samples and the ratio of the frequency of the most common value to the      frequency of the second most common value is large.  
+
+```{r echo=TRUE, cache=TRUE}
+## Remove features with Near Zero Variance
+td[is.na(td)] <- 0
+nzvtd <- nearZeroVar(td)
+td <- td[,-nzvtd]
+```
+The data set now contains `r nrow(td)` observations on `r ncol(td)` features. 
+
+3.  Features that have a 0.90 correlation or higher will be removed.  
+
+```{r echo=TRUE, cache=TRUE}
+## Find features that are highly correlated and remove 
+correlationMatrix <- cor(td[,1:52])
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.90)
+td <- td[ -c(highlyCorrelated) ]
+```
+The final data set contains `r nrow(td)` observations on `r ncol(td)` features. 
+
+#### Create training and testing sets for validation  
+
+Due to original large data set, I will simply create a training set and testing set to determine "out of sample error". I will not need to cross-validate by using LOOCV or k-Fold CV  
+
+```{r echo=TRUE, cache=TRUE}
+set.seed(3433)
+inTrain = createDataPartition(y=td$classe, p = 0.6,list=FALSE)
+training = td[ inTrain,]
+testing = td[-inTrain,]
+training$classe <- as.factor(training$classe)
+```
+The training data set contains `r nrow(training)` observations on `r ncol(training)` features. 
+
+The testing data set contains `r nrow(testing)` observations on `r ncol(testing)` features. 
+
+#### Create Predictive Models  
+
+A random forest model was initially used to produce a prediction model.  
+
+```{r echo=TRUE, cache=TRUE}
+## Create Predictive Model 
+modFitRf <- randomForest(classe ~. , data=training)
+```
+
+#### Validate using testing data  
+
+```{r echo=TRUE, cache=TRUE}
+predRf <- predict(modFitRf, newdata = testing, type = "class")
+cmRf <- confusionMatrix(predRf, testing$classe)
+```
+To look at out of sample error I looked at the accuracy on the testing data and the confusion matrix 
+
+Random Forest accuracy `r cmRf$overall['Accuracy']`    
+Based on this level of accuracy, I choose not to build a different model  
+
+
+Confusion Matrix  
+  
+  
+```{r echo=TRUE}
+cmRf$table
+```
+
+####Use the Prediction Model on the validation data 
+
+```{r echo=TRUE, cache=TRUE}
+vd <- read.csv("pml-testing.csv")
+vd[is.na(vd)] <- 0
+pred20 <- as.character(predict(modFitRf, vd))
+pred20
+
+```
+
+```{r echo=TRUE}
+
+## write prediction files
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("./pred20/problem_id_", i, ".txt")
+    write.table(x[i], file = filename, quote = FALSE, row.names = FALSE, col.names = FALSE)
+  }
+}
+
+pml_write_files(pred20)
+```
