@@ -2,6 +2,4 @@
 
 ### Qualitative Activity Recognition by Machine Learning  
 
-This is a test 
-
-[I'm an inline-style link with title](https://www.google.com "Google's Homepage")
+[Click the this link for the project html] ( http://rpubs.com/dreherg/128354 )
